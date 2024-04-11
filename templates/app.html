@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://www.WebRTC-Experiment.com/RecordRTC.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.js"></script>
+    <title>Transcription Test</title>
+
+
+</head>
+
+<body>
+    <h1>Realtime WebSocket Audio Streaming</h1>
+    <button id="startButton">Start Streaming</button>
+    <button id="stopButton">Stop Streaming</button>
+    <div id="responseContainer"></div>
+
+    <script>
+        socket = io()
+        socket.connect('http://127.0.0.1:5005')
+        let mediaRecorder;
+
+        socket.on('connect', () => {
+            console.log("Connected to the Socket")
+        })
+        socket.on('message', (msg) => {
+            let responseContainer = document.getElementById('responseContainer');
+            responseContainer.innerHTML += `<p>${msg}</p>`;
+        })
+
+        let handleDataAvailable = (event) => {
+            if (event.size > 0) {
+                console.log('blob', event)
+                blobToBase64(event).then(b64 => {
+                    socket.send(b64)
+                })
+            }
+        };
+
+        function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onload = () => {
+                    const base64String = reader.result.split(',')[1];
+                    resolve(base64String);
+                };
+                reader.onerror = (error) => reject(error);
+            });
+        }
+
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                let recorder = RecordRTC(stream, {
+                    type: 'audio',
+                    recorderType: StereoAudioRecorder,
+                    mimeType: 'audio/wav',
+                    timeSlice: 5000,
+                    desiredSampRate: 16000,
+                    numberOfAudioChannels: 1,
+                    ondataavailable: handleDataAvailable
+                });
+
+                document.getElementById('startButton').addEventListener('click', () => {
+                    recorder.startRecording();
+                });
+
+                document.getElementById('stopButton').addEventListener('click', () => {
+                    recorder.stopRecording();
+                });
+            });
+
+    </script>
+
+</body>
+
+</html>
